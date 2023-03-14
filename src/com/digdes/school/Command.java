@@ -7,7 +7,7 @@ import java.util.Objects;
 
 public class Command {
 
-    private List<Map<String, Object>> list = new ArrayList<>();
+    private List<Map<String, Object>> list;
 
     public Command(List<Map<String, Object>> list) {
         this.list = list;
@@ -27,8 +27,11 @@ public class Command {
         Values values = new Values();
         Where where = new Where();
         int methodIndex = 2;
-        List<Map<String, Object>> updateWithWhereList = new ArrayList<>();
-        String[] update = updateString.trim().split("\\s[wW]\\w{3}[eE]\\s");
+        String[] components = updateString.split("\\s+", 2);
+        if (components.length < 2 || !components[0].equalsIgnoreCase("values")) {
+            throw new InputFormatException("Missing fields for insert");
+        }
+        String[] update = components[1].trim().split("\\s[wW]\\w{3}[eE]\\s");
         Map<String, Object> updateMap = values.getMap(update[0].trim(), methodIndex);
         if (update.length == 1) {
             for (Map<String, Object> map : list) {
@@ -36,13 +39,15 @@ public class Command {
             }
         } else {
             List<Map<String, Object>> updateList = where.whereMethod(update[1], list);
-            for (Map<String, Object> map : updateList) {
-                map.putAll(updateMap);
-                map.values().removeIf(Objects::isNull);
-                updateWithWhereList.add(map);
+            for (Map<String, Object> l : list) {
+                for (Map<String, Object> m : updateList) {
+                    if (l.equals(m)) {
+                        for (String s : updateMap.keySet()) {
+                            l.put(s, updateMap.get(s));
+                        }
+                    }
+                }
             }
-            list.clear();
-            list.addAll(updateWithWhereList);
         }
         for (Map<String, Object> map : list) {
             map.values().removeIf(Objects::isNull);
